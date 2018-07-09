@@ -1,7 +1,7 @@
 from pprint import pprint
 
 import ibapi
-from ibapi.contract import Contract
+from ibapi.contract import Contract, ContractDetails
 from ibapi.common import TickerId
 from ibapi.ticktype import TickType
 
@@ -20,21 +20,33 @@ class TickStreamer(TWSClient):
         self._reqId2Contract = {}
         self.tick_data = {}
 
-    def subscribe(self):
+    def ContFut(self, symbol, exchange):
+        reqId = self.getReqId()
+        contract = Future(symbol=symbol, setType='FUT+CONTFUT', exchange=exchange)
+        self.reqContractDetails(reqId, contract)
+
+    def subscribe(self, contract):
         contracts = [
             Future(localSymbol='CLQ8', exchange='NYMEX', currency='USD')
         ]
+        reqId = self.getReqId()
         for contract in contracts:
-            reqId = self.getReqId()
             self._reqId2Contract[reqId] = contract
             self.reqMktData(reqId, contract, genericTickList='588', snapshot=False,
                             regulatorySnapshot=False, mktDataOptions=[])
 
     @iswrapper
     def connectAck(self):
-        # self.reqAccountUpdates(1, '')
-        # self.reqOpenOrders()
-        # self.reqPositions()
+
+        pass
+
+    @iswrapper
+    def contractDetails(self, reqId: int, contract_details: ContractDetails):
+        print(contract_details)
+        print(contract_details.summary)
+        pass
+
+    def contractDetailsEnd(self, reqId:int):
         pass
 
     @iswrapper
@@ -42,32 +54,31 @@ class TickStreamer(TWSClient):
                   tick_type: TickType,
                   price: float,
                   attrib: ibapi.common.TickAttrib):
-        contract = self._reqId2Contract[reqId]
+
         type_name = AVAILABLE_TICK_TYPES.get(tick_type, TickType)
-        # print('{} {} price {}'.format(contract.symbol,type_name, price))
+
         self.tick_data.update({type_name: price})
 
     @iswrapper
     def tickSize(self, reqId: int,
                  tick_type: TickType,
                  size: int):
-        contract = self._reqId2Contract[reqId]
+
         type_name = AVAILABLE_TICK_TYPES.get(tick_type, TickType)
-        # print('{} {} size {}'.format(contract.symbol, type_name,size))
+
         self.tick_data.update({type_name: size})
 
     @iswrapper
     def tickGeneric(self, reqId: TickerId, tick_type: TickType, value: float):
         type_name = AVAILABLE_TICK_TYPES.get(tick_type, TickType)
-        # print(tick_type,type_name,value)
         self.tick_data.update({type_name: value})
-        pass
 
     def tickString(self, reqId: TickerId, tick_type: TickType, value: str):
         type_name = AVAILABLE_TICK_TYPES.get(tick_type, TickType)
-        # print(tick_type,type_name,value)
         self.tick_data.update({type_name: value})
         if tick_type == 45:
+            contract = self._reqId2Contract[reqId]
+            self.tick_data.update({'symbol': contract.symbol, 'localSymbol': contract.localSymbol})
             pprint(self.tick_data)
 
     @iswrapper
@@ -95,7 +106,9 @@ class TickStreamer(TWSClient):
         pass
 
 
-tws = TickStreamer()
-tws.connect(host='127.0.0.1', port=4001, clientId=1)
-tws.subscribe()
-tws.run()
+if __name__ == '__main__':
+    tws = TickStreamer()
+    tws.connect(host='127.0.0.1', port=4001, clientId=1)
+    # tws.subscribe()
+    tws.ContFut('CL', 'NYMEX')
+    tws.run()
