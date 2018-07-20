@@ -19,34 +19,44 @@ class TickStreamer(TWSClient):
         self._reqIdSeq = 0
         self._reqId2Contract = {}
         self.tick_data = {}
+        self.all_contract = []
 
-    def ContFut(self, symbol, exchange):
+    def ContFut(self, symbol, exchange, currency):
         reqId = self.getReqId()
-        contract = Future(symbol=symbol, setType='FUT+CONTFUT', exchange=exchange)
+        contract = Future(symbol=symbol, secType='FUT+CONTFUT', exchange=exchange, currency=currency)
         self.reqContractDetails(reqId, contract)
 
-    def subscribe(self, contract):
-        contracts = [
-            Future(localSymbol='CLQ8', exchange='NYMEX', currency='USD')
-        ]
+    def subscribe(self,  symbol, exchange, currency):
+        self.ContFut(symbol, exchange, currency)
+
+    @iswrapper
+    def sub_mkt_data(self):
         reqId = self.getReqId()
-        for contract in contracts:
+        for contract in self.contracts:
             self._reqId2Contract[reqId] = contract
             self.reqMktData(reqId, contract, genericTickList='588', snapshot=False,
                             regulatorySnapshot=False, mktDataOptions=[])
 
     @iswrapper
     def connectAck(self):
-
         pass
 
     @iswrapper
     def contractDetails(self, reqId: int, contract_details: ContractDetails):
-        print(contract_details)
-        print(contract_details.summary)
-        pass
+        if contract_details.summary.secType == 'CONTFUT':
+            self.contracts = [
+                Future(localSymbol=contract_details.summary.localSymbol,
+                       exchange=contract_details.summary.exchange,
+                       currency=contract_details.summary.currency,
+                       symbol=contract_details.summary.symbol,
+                       secType='FUT',
+                       lastTradeMonth=contract_details.summary.lastTradeDateOrContractMonth
+                       )
+            ]
+            self.sub_mkt_data()
 
-    def contractDetailsEnd(self, reqId:int):
+    def contractDetailsEnd(self, reqId: int):
+        # pprint(self.all_contract)
         pass
 
     @iswrapper
@@ -108,7 +118,7 @@ class TickStreamer(TWSClient):
 
 if __name__ == '__main__':
     tws = TickStreamer()
-    tws.connect(host='127.0.0.1', port=4001, clientId=1)
-    # tws.subscribe()
-    tws.ContFut('CL', 'NYMEX')
+    tws.connect(host='127.0.0.1', port=4001, clientId=11)
+    tws.subscribe('ES', 'GLOBEX','USD')
+    # tws.ContFut('ES', 'GLOBEX','USD')
     tws.run()

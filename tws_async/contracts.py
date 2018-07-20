@@ -34,9 +34,9 @@ class Option(Contract):
 
 class Future(Contract):
     def __init__(self, symbol='', lastTradeDateOrContractMonth='',
-            exchange='SMART', localSymbol='', multiplier='',
+            exchange='SMART', localSymbol='', multiplier='',secType='',
             currency='USD', **kwargs):
-        Contract.__init__(self, secType='FUT', symbol=symbol,
+        Contract.__init__(self, secType=secType, symbol=symbol,
                 lastTradeDateOrContractMonth=lastTradeDateOrContractMonth,
                 exchange=exchange, localSymbol=localSymbol,
                 multiplier=multiplier, currency=currency, **kwargs)
