@@ -1,11 +1,12 @@
 from pprint import pprint
 
 import ibapi
+import os
 from ibapi.contract import Contract, ContractDetails
 from ibapi.common import TickerId
 from ibapi.ticktype import TickType
 
-from tws_async import TWSClient, iswrapper, Future, AVAILABLE_TICK_TYPES, ROOT_PATH
+from tws_async import TWSClient, iswrapper, Future, AVAILABLE_TICK_TYPES, ROOT_PATH, create_timed_rotating_log
 
 
 class TickStreamer(TWSClient):
@@ -20,13 +21,14 @@ class TickStreamer(TWSClient):
         self._reqId2Contract = {}
         self.tick_data = {}
         self.all_contract = []
+        self.log_path = os.path.join(ROOT_PATH, 'logs')
 
     def ContFut(self, symbol, exchange, currency):
         reqId = self.getReqId()
         contract = Future(symbol=symbol, secType='FUT+CONTFUT', exchange=exchange, currency=currency)
         self.reqContractDetails(reqId, contract)
 
-    def subscribe(self,  symbol, exchange, currency):
+    def subscribe(self, symbol, exchange, currency):
         self.ContFut(symbol, exchange, currency)
 
     @iswrapper
@@ -53,10 +55,10 @@ class TickStreamer(TWSClient):
                        lastTradeMonth=contract_details.summary.lastTradeDateOrContractMonth
                        )
             ]
-            self.sub_mkt_data()
 
     def contractDetailsEnd(self, reqId: int):
         # pprint(self.all_contract)
+        self.sub_mkt_data()
         pass
 
     @iswrapper
@@ -89,7 +91,9 @@ class TickStreamer(TWSClient):
         if tick_type == 45:
             contract = self._reqId2Contract[reqId]
             self.tick_data.update({'symbol': contract.symbol, 'localSymbol': contract.localSymbol})
-            pprint(self.tick_data)
+            # pprint(self.tick_data)
+
+            create_timed_rotating_log(self.tick_data, self.log_path)
 
     @iswrapper
     def updateAccountTime(self, timeStamp: str):
@@ -119,6 +123,6 @@ class TickStreamer(TWSClient):
 if __name__ == '__main__':
     tws = TickStreamer()
     tws.connect(host='127.0.0.1', port=4001, clientId=11)
-    tws.subscribe('ES', 'GLOBEX','USD')
+    tws.subscribe('ES', 'GLOBEX', 'USD')
     # tws.ContFut('ES', 'GLOBEX','USD')
     tws.run()
